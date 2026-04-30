@@ -3,77 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Housekeeping Dashboard</title>
+    <title>Housekeeping Paneli | Otel PMS</title>
+    <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        :root { --hk-purple: #8b5cf6; --hk-dark: #1e1b4b; --pms-gray: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--pms-gray); margin: 0; }
+        .badge-occupied { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+        .badge-vacant { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+        .live-pulse { display: inline-block; width: 8px; height: 8px; background: #8b5cf6; border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
 </head>
-<body class="hk-body">
-    <header class="hk-header">
-        <h1>🧹 Housekeeping Paneli</h1>
-        <div class="hk-controls">
-            <span class="user-info">Hoşgeldiniz, <strong>{{ username }}</strong></span>
-            <a href="/" class="btn btn-quiet">Çıkış Yap</a>
-        </div>
-    </header>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar" style="background: var(--hk-purple);">
+            <div class="sidebar-brand">🧹 PMS <span>Housekeeper</span></div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-link active">📋 Oda Listesi</a>
+                <a href="#" class="nav-link">📦 Malzeme Talebi</a>
+            </nav>
+        </aside>
 
-    <main class="hk-main">
-        <section class="rooms-section">
-            <h2>Oda Listesi ve Temizlik Durumları</h2>
-            <table class="rooms-table">
-                <thead>
-                    <tr>
-                        <th>Oda No</th>
-                        <th>Oda Tipi</th>
-                        <th>Durum</th>
-                        <th>Doluluk</th>
-                        <th>Aksiyon</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for room in rooms %}
-                    <tr class="room-row status-{{ room.status|lower }}">
-                        <td><strong>{{ room.id }}</strong></td>
-                        <td>{{ room.room_type }}</td>
-                        <td>
-                            <span class="status-badge">{{ room.status }}</span>
-                        </td>
-                        <td>{{ room.occupancy }}</td>
-                        <td class="col-actions">
-                            <!-- Durum Güncelleme Butonları -->
-                            <button onclick="updateStatus({{ room.id }}, 'Clean')" class="btn btn-small btn-success">Temiz</button>
-                            <button onclick="updateStatus({{ room.id }}, 'Dirty')" class="btn btn-small btn-danger">Kirli</button>
-                            <button onclick="updateStatus({{ room.id }}, 'OutOfOrder')" class="btn btn-small">Arızalı</button>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="empty">Görüntülenecek oda bulunamadı.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-    </main>
+        <main class="main-content">
+            <header class="dashboard-header">
+                <h2>Kat Hizmetleri Operasyonu <span class="badge-vacant" style="background:#ede9fe; color:#6d28d9;"><span class="live-pulse"></span>CANLI TAKİP</span></h2>
+                <div class="header-right">
+                    <span class="user-info">👤 {{ username }}</span>
+                    <button class="btn-logout" onclick="window.location.href='/'">Çıkış</button>
+                </div>
+            </header>
+
+            <section class="content-section active">
+                <div class="section-card">
+                    <p style="color: #64748b;">Resepsiyon bir işlem yaptığında liste anlık güncellenir.</p>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Oda No</th>
+                                <th>Tip</th>
+                                <th>Doluluk (Resepsiyon)</th>
+                                <th>Temizlik Durumu</th>
+                                <th>Aksiyon</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hkTableBody">
+                            <!-- Veriler WebSocket/API ile gelecek -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
 
     <script>
-        async function updateStatus(roomId, newStatus) {
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
+        const token = new URLSearchParams(window.location.search).get('token') || "{{ token }}";
 
+        async function loadHKData() {
             try {
-                const response = await fetch(`/api/rooms/${roomId}/status?new_status=${newStatus}&token=${token}`, {
-                    method: 'PUT'
-                });
-                
-                if (response.ok) {
-                    alert(`Oda ${roomId} durumu ${newStatus} olarak güncellendi!`);
-                    location.reload(); // Sayfayı yenile ve güncel durumu gör
-                } else {
-                    alert("Güncelleme sırasında bir hata oluştu.");
-                }
-            } catch (error) {
-                console.error("Hata:", error);
-            }
+                const res = await fetch(`/api/rooms?token=${token}`);
+                const rooms = await res.json();
+                renderHKTable(rooms);
+            } catch (err) { console.error("Veri hatası:", err); }
         }
+
+        function renderHKTable(rooms) {
+            const tbody = document.getElementById('hkTableBody');
+            tbody.innerHTML = rooms.map(r => `
+                <tr class="${r.occupancy === 'Occupied' ? 'row-occupied' : ''}">
+                    <td><strong>${r.id}</strong></td>
+                    <td>${r.room_type}</td>
+                    <td>
+                        <span class="${r.occupancy === 'Occupied' ? 'badge-occupied' : 'badge-vacant'}">
+                            ${r.occupancy === 'Occupied' ? '入住 DOLU' : '空 Boş'}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-${r.status.toLowerCase()}">${r.status}</span>
+                    </td>
+                    <td>
+                        <button onclick="changeStatus(${r.id}, 'Clean')" class="btn-small btn-success">Temiz</button>
+                        <button onclick="changeStatus(${r.id}, 'Dirty')" class="btn-small btn-danger">Kirli</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function changeStatus(roomId, newStatus) {
+            await fetch(`/api/rooms/${roomId}/status?new_status=${newStatus}&token=${token}`, { method: 'PUT' });
+            loadHKData();
+        }
+
+        // WEBSOCKET: Resepsiyonun işlemlerini dinle
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+        ws.onmessage = function(event) {
+            // Önbüro bir rezervasyon aldığında veya check-in yaptığında tetiklenir
+            if (event.data === "rooms_updated") {
+                console.log("Resepsiyondan güncelleme geldi!");
+                loadHKData();
+            }
+        };
+
+        window.onload = loadHKData;
     </script>
 </body>
 </html>

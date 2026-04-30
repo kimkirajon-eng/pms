@@ -43,9 +43,6 @@ class LoginResponse(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
     """Giriş sayfasını sunun"""
-    @app.get("/")
-async def login_page(request: Request):
-    # Parametreleri anahtar kelime (keyword argument) olarak açıkça belirtiyoruz
     return templates.TemplateResponse(name="login.html", context={"request": request})
 
 # ============= LOGIN ENDPOINT'İ =============

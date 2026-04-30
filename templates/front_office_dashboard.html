@@ -3,154 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Önbüro Yönetimi | Otel PMS</title>
-    <!-- Modern Yazı Tipi -->
+    <title>PMS Pro | Front Office Console</title>
+    <!-- Modern Yazı Tipleri ve İkonlar -->
     <link href="https://googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="https://cloudflare.com">
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        :root { --pms-blue: #0ea5e9; --pms-dark: #0f172a; --pms-gray: #f8fafc; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--pms-gray); margin: 0; }
-        .badge-clean { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
-        .badge-dirty { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
-        .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
-        .room-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; text-align: center; transition: 0.3s; }
-        .room-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .live-indicator { display: inline-block; width: 10px; height: 10px; background: #22c55e; border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        :root {
+            --sidebar-width: 260px;
+            --primary: #4f46e5;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-gray: #f1f5f9;
+        }
+
+        body { font-family: 'Poppins', sans-serif; background: var(--bg-gray); margin: 0; display: flex; overflow: hidden; }
+        
+        /* Oda Kartı Tasarımı */
+        .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; padding: 20px; }
+        .room-card {
+            background: white; border-radius: 12px; padding: 20px; text-align: center;
+            border-bottom: 5px solid #ccc; transition: all 0.3s ease; cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .room-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+        .room-card.occupied { border-bottom-color: var(--danger); }
+        .room-card.vacant { border-bottom-color: var(--success); }
+        .room-number { font-size: 1.5rem; font-weight: 600; display: block; margin-bottom: 5px; }
+        
+        /* Durum Rozetleri */
+        .status-pill { font-size: 0.7rem; padding: 4px 8px; border-radius: 20px; font-weight: 500; text-transform: uppercase; }
+        .clean { background: #dcfce7; color: #166534; }
+        .dirty { background: #fee2e2; color: #991b1b; }
+        
+        /* Sidebar ve Header */
+        .sidebar { width: var(--sidebar-width); background: #1e293b; color: white; height: 100vh; padding: 20px; }
+        .main-stage { flex: 1; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+        .header { background: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+        
+        /* Formlar */
+        .booking-modal { background: white; border-radius: 15px; padding: 25px; max-width: 500px; margin: 50px auto; }
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <!-- SIDEBAR -->
-        <aside class="sidebar">
-            <div class="sidebar-brand">🏨 PMS <span>Front</span></div>
-            <nav class="nav-menu">
-                <a href="#" class="nav-link active" onclick="showSection('reservations')">📋 Rezervasyonlar</a>
-                <a href="#" class="nav-link" onclick="showSection('hk-live')">🧹 HK Canlı Takip</a>
-            </nav>
-        </aside>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <h2 style="color: var(--primary); margin-bottom: 30px;">🏨 PMS PRO</h2>
+        <nav>
+            <div class="nav-item active" onclick="showSection('room-view')"><i class="fa fa-th-large"></i> Oda Planı</div>
+            <div class="nav-item" onclick="showSection('booking-list')"><i class="fa fa-list"></i> Rezervasyonlar</div>
+            <div class="nav-item" onclick="showSection('new-res')"><i class="fa fa-plus-circle"></i> Yeni Kayıt</div>
+        </nav>
+    </aside>
 
-        <!-- MAIN -->
-        <main class="main-content">
-            <header class="dashboard-header">
-                <h2>Önbüro Operasyon Merkezi <span class="badge-clean" style="font-size: 0.6rem;"><span class="live-indicator"></span>CANLI</span></h2>
-                <div class="header-right">
-                    <span class="user-info">👤 {{ username }}</span>
-                    <button class="btn-logout" onclick="logout()">Güvenli Çıkış</button>
-                </div>
-            </header>
+    <div class="main-stage">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="live-status"><span class="pulse-dot"></span> Sistem Çevrimiçi</div>
+            <div class="user-profile"><strong>{{ username }}</strong> | <a href="/" style="text-decoration:none; color:var(--danger);">Çıkış</a></div>
+        </header>
 
-            <!-- HK CANLI TAKİP SEKSİYONU -->
-            <section id="hk-live" class="content-section">
-                <div class="section-card">
-                    <h3>Housekeeping Oda Durumları</h3>
-                    <p>Oda durumları HK tarafından güncellendiğinde burada anlık değişir.</p>
-                    <div id="hkRoomGrid" class="room-grid">
-                        <!-- WebSocket veya API ile dolacak -->
-                    </div>
-                </div>
-            </section>
+        <!-- ODA PLANI (Görsel Grid) -->
+        <section id="room-view" class="content-section active">
+            <div class="room-grid" id="roomGrid">
+                <!-- JavaScript burayı dolduracak -->
+            </div>
+        </section>
 
-            <!-- REZERVASYONLAR SEKSİYONU -->
-            <section id="reservations" class="content-section active">
-                <div class="section-card">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Rez ID</th>
-                                <th>Oda</th>
-                                <th>Misafir</th>
-                                <th>HK Durumu</th>
-                                <th>İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="foTableBody">
-                            <!-- Veriler Buraya -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </main>
+        <!-- REZERVASYON LİSTESİ -->
+        <section id="booking-list" class="content-section" style="display:none; padding:20px;">
+            <div class="card">
+                <h3>Güncel Rezervasyonlar</h3>
+                <table id="resTable" width="100%">
+                    <!-- JS ile dolacak -->
+                </table>
+            </div>
+        </section>
     </div>
 
     <script>
         const token = new URLSearchParams(window.location.search).get('token') || "{{ token }}";
 
-        // 1. VERİLERİ YÜKLEME FONKSİYONU
-        async function loadFrontOfficeData() {
-            try {
-                const [roomsRes, bookingsRes] = await Promise.all([
-                    fetch(`/api/rooms?token=${token}`),
-                    fetch(`/api/bookings?token=${token}`)
-                ]);
-
-                const rooms = await roomsRes.json();
-                const bookings = await bookingsRes.json();
-
-                renderHKGrid(rooms);
-                renderBookings(bookings, rooms);
-            } catch (err) {
-                console.error("Veri çekme hatası:", err);
-            }
+        // VERİLERİ ÇEK VE EKRANI ÇİZ
+        async function refreshConsole() {
+            const [rRes, bRes] = await Promise.all([
+                fetch(`/api/rooms?token=${token}`),
+                fetch(`/api/bookings?token=${token}`)
+            ]);
+            const rooms = await rRes.json();
+            renderRooms(rooms);
         }
 
-        function renderHKGrid(rooms) {
-            const grid = document.getElementById('hkRoomGrid');
-            grid.innerHTML = rooms.map(r => `
-                <div class="room-card">
-                    <strong>Oda ${r.id}</strong><br>
-                    <span class="${r.status === 'Clean' ? 'badge-clean' : 'badge-dirty'}">
-                        ${r.status === 'Clean' ? 'TEMİZ' : 'KİRLİ'}
-                    </span>
+        function renderRooms(rooms) {
+            const grid = document.getElementById('roomGrid');
+            grid.innerHTML = rooms.map(room => `
+                <div class="room-card ${room.occupancy === 'Occupied' ? 'occupied' : 'vacant'}">
+                    <span class="room-number">${room.id}</span>
+                    <small style="color:#64748b">${room.room_type}</small>
+                    <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+                    <div style="margin-bottom:10px">
+                        <span class="status-pill ${room.status.toLowerCase()}">
+                            ${room.status === 'Clean' ? '✨ Temiz' : '🧹 Kirli'}
+                        </span>
+                    </div>
+                    <small><strong>${room.occupancy === 'Occupied' ? '🔴 DOLU' : '🟢 BOŞ'}</strong></small>
                 </div>
             `).join('');
         }
 
-        function renderBookings(bookings, rooms) {
-            const tbody = document.getElementById('foTableBody');
-            tbody.innerHTML = bookings.map(b => {
-                const room = rooms.find(r => r.id === b.room_id);
-                const isClean = room && room.status === 'Clean';
-                return `
-                    <tr>
-                        <td>${b.id}</td>
-                        <td><strong>${b.room_id}</strong></td>
-                        <td>${b.guest_name}</td>
-                        <td><span class="${isClean ? 'badge-clean' : 'badge-dirty'}">${room ? room.status : '-'}</span></td>
-                        <td>
-                            <button class="btn-primary" ${!isClean ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="alert('Check-in Başarılı!')">
-                                ${isClean ? '🔑 Giriş Yap' : '⏳ Temizlik Bekliyor'}
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // 2. WEBSOCKET BAĞLANTISI (ANLIK GÜNCELLEME)
+        // WEBSOCKET: ANLIK GÜNCELLEME
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        ws.onmessage = (e) => { if(e.data === "rooms_updated") refreshConsole(); };
 
-        ws.onmessage = function(event) {
-            if (event.data === "rooms_updated") {
-                console.log("HK Güncellemesi Alındı!");
-                loadFrontOfficeData(); // Sayfayı yenilemeden veriyi tazele
-            }
-        };
-
-        // DİĞER FONKSİYONLAR
         function showSection(id) {
-            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            event.target.classList.add('active');
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
         }
 
-        async function logout() {
-            window.location.href = '/';
-        }
-
-        window.onload = loadFrontOfficeData;
+        window.onload = refreshConsole;
     </script>
 </body>
 </html>

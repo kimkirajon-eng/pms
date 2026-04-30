@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Housekeeping Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="hk-body">
+  <header class="hk-header">
+    <h1>Housekeeping Paneli</h1>
+    <div class="hk-controls">
+      <span class="user-info">Hoşgeldiniz, <strong>{{ user.username }}</strong></span>
+      <form method="post" action="/logout" class="inline">
+        <button type="submit" class="btn btn-quiet">Çıkış</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="hk-main">
+    <section class="summary">
+      <div class="card">
+        <h2>Özet</h2>
+        <ul class="summary-list">
+          <li><strong>Toplam Oda:</strong> {{ totals.total_rooms }}</li>
+          <li><strong>Temiz:</strong> {{ totals.clean }}</li>
+          <li><strong>Kirli:</strong> {{ totals.dirty }}</li>
+          <li><strong>Onaylı:</strong> {{ totals.inspected }}</li>
+          <li><strong>Arızalı:</strong> {{ totals.out_of_order }}</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Filtreler</h2>
+        <form method="get" action="/housekeeping" class="filter-form">
+          <label>Durum:
+            <select name="status">
+              <option value="">Tümü</option>
+              <option value="Clean" {% if request.args.get('status')=='Clean' %}selected{% endif %}>Temiz</option>
+              <option value="Dirty" {% if request.args.get('status')=='Dirty' %}selected{% endif %}>Kirli</option>
+              <option value="Inspected" {% if request.args.get('status')=='Inspected' %}selected{% endif %}>Onaylı</option>
+              <option value="OutOfOrder" {% if request.args.get('status')=='OutOfOrder' %}selected{% endif %}>Arızalı</option>
+            </select>
+          </label>
+
+          <label>Oda Tipi:
+            <select name="room_type">
+              <option value="">Tümü</option>
+              <option value="Standart" {% if request.args.get('room_type')=='Standart' %}selected{% endif %}>Standart</option>
+              <option value="Delüks" {% if request.args.get('room_type')=='Delüks' %}selected{% endif %}>Delüks</option>
+              <option value="Suit" {% if request.args.get('room_type')=='Suit' %}selected{% endif %}>Suit</option>
+            </select>
+          </label>
+
+          <label>Aranacak Oda:
+            <input type="text" name="q" placeholder="Oda numarası veya misafir" value="{{ request.args.get('q','') }}" />
+          </label>
+
+          <div class="filter-actions">
+            <button class="btn" type="submit">Uygula</button>
+            <a class="btn btn-quiet" href="/housekeeping">Temizle</a>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="rooms-section">
+      <h2>Odalar</h2>
+      <table class="rooms-table" aria-describedby="rooms-caption">
+        <caption id="rooms-caption">Oda listesi — duruma göre sıralanmış</caption>
+        <thead>
+          <tr>
+            <th>Oda</th>
+            <th>Tip</th>
+            <th>Durum</th>
+            <th>Doluluk</th>
+            <th>Son Temizlik</th>
+            <th>Rez.</th>
+            <th>Aksiyon</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for room in rooms %}
+          <tr class="room-row status-{{ room.status|lower }}">
+            <td class="col-room">{{ room.id }}</td>
+            <td>{{ room.room_type }}</td>
+            <td class="col-status">{{ room.status }}</td>
+            <td>{{ room.occupancy }}</td>
+            <td>{{ room.last_cleaned_at if room.last_cleaned_at else '—' }}</td>
+            <td>
+              {% if room.booking %}
+                <div class="booking-info">
+                  <div class="guest">{{ room.booking.guest_name }}</div>
+                  <div class="dates">{{ room.booking.check_in }} → {{ room.booking.check_out }}</div>
+                </div>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td class="col-actions">
+              <form method="post" action="/housekeeping/update_status" class="inline">
+                <input type="hidden" name="room_id" value="{{ room.id }}" />
+                <select name="new_status" class="small-select" aria-label="Durum seç">
+                  <option value="Clean" {% if room.status=='Clean' %}selected{% endif %}>Temiz</option>
+                  <option value="Dirty" {% if room.status=='Dirty' %}selected{% endif %}>Kirli</option>
+                  <option value="Inspected" {% if room.status=='Inspected' %}selected{% endif %}>Onaylı</option>
+                  <option value="OutOfOrder" {% if room.status=='OutOfOrder' %}selected{% endif %}>Arızalı</option>
+                </select>
+                <button class="btn btn-small" type="submit">Güncelle</button>
+              </form>
+
+              <form method="post" action="/housekeeping/mark_cleaned" class="inline">
+                <input type="hidden" name="room_id" value="{{ room.id }}" />
+                <button class="btn btn-primary btn-small" type="submit">Temizlendi</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="empty">Uygun oda bulunamadı.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="hk-footer">
+    <small>Son güncelleme: {{ now }}</small>
+  </footer>
+</body>
+</html>

@@ -43,7 +43,10 @@ class LoginResponse(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
     """Giriş sayfasını sunun"""
-    return templates.TemplateResponse(name="login.html", context={"request": request})
+    return templates.TemplateResponse(
+        request=request, 
+        name="login.html"
+    )
 
 # ============= LOGIN ENDPOINT'İ =============
 @app.post("/api/login", response_model=LoginResponse)

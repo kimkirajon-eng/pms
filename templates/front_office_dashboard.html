@@ -3,202 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Önbüro Dashboard - Otel PMS</title>
+    <title>Önbüro Yönetimi | Otel PMS</title>
+    <!-- Google Fonts & Icons -->
+    <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Panel Özel Stilleri - Modern Mavi Tema */
+        :root { --pms-blue: #0ea5e9; --pms-dark: #0f172a; --pms-gray: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--pms-gray); }
+        .badge-clean { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; }
+        .badge-dirty { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; }
+        .room-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 10px; background: white; transition: 0.3s; }
+        .room-card:hover { border-color: var(--pms-blue); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <!-- HEADER -->
-        <header class="dashboard-header">
-            <div class="header-left">
-                <h1>🏨 Otel PMS - Önbüro Paneli</h1>
-            </div>
-            <div class="header-right">
-                <span class="user-info">👤 {{ username }}</span>
-                <button class="btn-logout" onclick="logout()">Çıkış Yap</button>
-            </div>
-        </header>
-
+    <div class="dashboard-wrapper">
         <!-- SIDEBAR -->
-        <aside class="sidebar">
-            <nav class="nav-menu">
-                <div class="nav-section">
-                    <h3>Rezervasyonlar</h3>
-                    <a href="#" class="nav-link active" onclick="showSection('reservations')">
-                        📋 Tüm Rezervasyonlar
-                    </a>
-                    <a href="#" class="nav-link" onclick="showSection('new-booking')">
-                        ➕ Yeni Rezervasyon
-                    </a>
-                    <a href="#" class="nav-link" onclick="showSection('check-in')">
-                        🔑 Check-in İşlemleri
-                    </a>
-                    <a href="#" class="nav-link" onclick="showSection('check-out')">
-                        🚪 Check-out İşlemleri
-                    </a>
-                </div>
-                <div class="nav-section">
-                    <h3>Raporlar</h3>
-                    <a href="#" class="nav-link" onclick="showSection('daily-report')">
-                        📊 Günlük Rapor
-                    </a>
-                    <a href="#" class="nav-link" onclick="showSection('occupancy')">
-                        📈 İşgal Oranı
-                    </a>
-                </div>
-            </nav>
-        </aside>
+        <nav class="sidebar">
+            <div class="sidebar-brand">PMS <span>Manager</span></div>
+            <ul class="nav-list">
+                <li onclick="showSection('reservations')" class="nav-item active">📋 Rezervasyonlar</li>
+                <li onclick="showSection('room-status')" class="nav-item">🛏️ Oda Durumları (HK Canlı)</li>
+                <li onclick="showSection('new-booking')" class="nav-item">➕ Hızlı Kayıt</li>
+            </ul>
+        </nav>
 
-        <!-- MAIN CONTENT -->
+        <!-- MAIN -->
         <main class="main-content">
-            <!-- REZERVASYONLAR SEKSİYONU -->
-            <section id="reservations" class="content-section active">
-                <div class="section-header">
-                    <h2>Aktif Rezervasyonlar</h2>
-                    <div class="filter-bar">
-                        <input type="text" id="searchGuest" placeholder="Misafir adı ara..." class="search-input">
-                        <button class="btn-refresh" onclick="loadBookings()">🔄 Yenile</button>
+            <header class="top-bar">
+                <h2>Önbüro Operasyon Merkezi</h2>
+                <div class="user-pill">👤 {{ username }} | <a href="/">Çıkış</a></div>
+            </header>
+
+            <!-- HK İLE İLETİŞİM: CANLI ODA DURUMLARI -->
+            <section id="room-status" class="content-section">
+                <div class="section-card">
+                    <h3>Housekeeping Canlı Takip</h3>
+                    <p class="hint">Temizlenmeyen (Dirty) odalara Check-in yapılamaz.</p>
+                    <div id="hkRoomGrid" class="grid-layout">
+                        <!-- JS ile dolacak -->
                     </div>
                 </div>
+            </section>
 
-                <div class="table-responsive">
-                    <table class="data-table">
+            <!-- REZERVASYONLAR -->
+            <section id="reservations" class="content-section active">
+                <div class="section-card">
+                    <div class="flex-between">
+                        <h3>Aktif Rezervasyonlar</h3>
+                        <button class="btn-refresh" onclick="loadFrontOfficeData()">🔄 Verileri Güncelle</button>
+                    </div>
+                    <table class="modern-table">
                         <thead>
                             <tr>
-                                <th>Rez. ID</th>
-                                <th>Oda No</th>
-                                <th>Misafir Adı</th>
-                                <th>Giriş Tarihi</th>
-                                <th>Çıkış Tarihi</th>
-                                <th>Durum</th>
-                                <th>İşlemler</th>
+                                <th>Rez ID</th>
+                                <th>Oda</th>
+                                <th>Misafir</th>
+                                <th>HK Durumu</th>
+                                <th>İşlem</th>
                             </tr>
                         </thead>
-                        <tbody id="bookingsTable">
-                            <tr>
-                                <td colspan="7" class="loading">Yükleniyor...</td>
-                            </tr>
+                        <tbody id="foTableBody">
+                            <!-- JS ile dolacak -->
                         </tbody>
                     </table>
-                </div>
-            </section>
-
-            <!-- YENİ REZERVASYON SEKSİYONU -->
-            <section id="new-booking" class="content-section">
-                <div class="section-header">
-                    <h2>Yeni Rezervasyon Oluştur</h2>
-                </div>
-
-                <form class="booking-form" onsubmit="createBooking(event)">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="newGuestName">Misafir Adı Soyadı *</label>
-                            <input type="text" id="newGuestName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="newRoomId">Oda Numarası *</label>
-                            <input type="number" id="newRoomId" required>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="newCheckIn">Giriş Tarihi *</label>
-                            <input type="date" id="newCheckIn" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="newCheckOut">Çıkış Tarihi *</label>
-                            <input type="date" id="newCheckOut" required>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn-primary">✅ Rezervasyon Oluştur</button>
-                </form>
-
-                <div id="bookingMessage" class="message-box" style="display: none;"></div>
-            </section>
-
-            <!-- CHECK-IN SEKSİYONU -->
-            <section id="check-in" class="content-section">
-                <div class="section-header">
-                    <h2>Check-in İşlemleri</h2>
-                </div>
-
-                <div class="check-in-container">
-                    <div class="form-group">
-                        <label for="checkInReservationId">Rezervasyon ID veya Oda Numarası</label>
-                        <input type="text" id="checkInReservationId" placeholder="Ara...">
-                    </div>
-
-                    <div id="checkInInfo" class="info-box" style="display: none;">
-                        <h3 id="checkInGuestName"></h3>
-                        <p><strong>Oda:</strong> <span id="checkInRoom"></span></p>
-                        <p><strong>Giriş Tarihi:</strong> <span id="checkInDate"></span></p>
-                        <button class="btn-success" onclick="performCheckIn()">🔑 Check-in Yap</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- CHECK-OUT SEKSİYONU -->
-            <section id="check-out" class="content-section">
-                <div class="section-header">
-                    <h2>Check-out İşlemleri</h2>
-                </div>
-
-                <div class="check-out-container">
-                    <div class="form-group">
-                        <label for="checkOutRoomId">Oda Numarası</label>
-                        <input type="number" id="checkOutRoomId" placeholder="Oda numarasını girin...">
-                    </div>
-
-                    <div id="checkOutInfo" class="info-box" style="display: none;">
-                        <h3 id="checkOutGuestName"></h3>
-                        <p><strong>Oda:</strong> <span id="checkOutRoom"></span></p>
-                        <p><strong>Çıkış Tarihi:</strong> <span id="checkOutDate"></span></p>
-                        <button class="btn-success" onclick="performCheckOut()">🚪 Check-out Yap</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- GÜNLÜK RAPOR SEKSİYONU -->
-            <section id="daily-report" class="content-section">
-                <div class="section-header">
-                    <h2>Günlük Rapor</h2>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h4>Toplam Oda</h4>
-                        <p class="stat-number" id="totalRooms">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h4>Dolu Odalar</h4>
-                        <p class="stat-number" id="occupiedRooms">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h4>Bugün Check-in</h4>
-                        <p class="stat-number" id="todayCheckIn">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h4>Bugün Check-out</h4>
-                        <p class="stat-number" id="todayCheckOut">0</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- İŞGAL ORANI SEKSİYONU -->
-            <section id="occupancy" class="content-section">
-                <div class="section-header">
-                    <h2>İşgal Oranı</h2>
-                </div>
-
-                <div class="occupancy-info">
-                    <div class="occupancy-chart">
-                        <div class="occupancy-bar-container">
-                            <div class="occupancy-bar-fill" id="occupancyBar" style="width: 0%;"></div>
-                        </div>
-                        <p><span id="occupancyPercentage">0</span>% İşgal</p>
-                    </div>
                 </div>
             </section>
         </main>
@@ -207,175 +76,71 @@
     <script>
         const token = "{{ token }}";
 
-        // SEKSİYON DEĞİŞTİRME
-        function showSection(sectionId) {
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.getElementById(sectionId).classList.add('active');
+        async function loadFrontOfficeData() {
+            // Hem odaları (HK durumu için) hem rezervasyonları çekiyoruz
+            const [roomsRes, bookingsRes] = await Promise.all([
+                fetch(`/api/rooms?token=${token}`),
+                fetch(`/api/bookings?token=${token}`)
+            ]);
 
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            event.target.classList.add('active');
+            const rooms = await roomsRes.json();
+            const bookings = await bookingsRes.json();
 
-            // Section'a özel yükleme işlemleri
-            if (sectionId === 'reservations') {
-                loadBookings();
-            } else if (sectionId === 'daily-report') {
-                loadDailyReport();
-            } else if (sectionId === 'occupancy') {
-                loadOccupancy();
-            }
+            renderHKStatus(rooms);
+            renderBookings(bookings, rooms);
         }
 
-        // REZERVASYONLARI YÜKLEMEhöz
-        async function loadBookings() {
-            try {
-                const response = await fetch(`/api/bookings?token=${token}`);
-                const bookings = await response.json();
+        function renderHKStatus(rooms) {
+            const grid = document.getElementById('hkRoomGrid');
+            grid.innerHTML = rooms.map(r => `
+                <div class="room-card">
+                    <strong>Oda ${r.id}</strong>
+                    <div class="${r.status === 'Clean' ? 'badge-clean' : 'badge-dirty'}">
+                        ${r.status === 'Clean' ? '✅ TEMİZ' : '🧹 KİRLİ'}
+                    </div>
+                </div>
+            `).join('');
+        }
 
-                const tbody = document.getElementById('bookingsTable');
-                tbody.innerHTML = '';
+        function renderBookings(bookings, rooms) {
+            const tbody = document.getElementById('foTableBody');
+            tbody.innerHTML = bookings.map(b => {
+                const room = rooms.find(r => r.id === b.room_id);
+                const isClean = room && room.status === 'Clean';
 
-                if (bookings.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="no-data">Rezervasyon bulunamadı</td></tr>';
-                    return;
-                }
-
-                bookings.forEach(booking => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${booking.id}</td>
-                        <td><strong>${booking.room_id}</strong></td>
-                        <td>${booking.guest_name}</td>
-                        <td>${booking.check_in}</td>
-                        <td>${booking.check_out}</td>
-                        <td><span class="status-badge status-${booking.reservation_status.toLowerCase()}">${booking.reservation_status}</span></td>
+                return `
+                    <tr>
+                        <td>${b.id}</td>
+                        <td>${b.room_id}</td>
+                        <td>${b.guest_name}</td>
+                        <td><span class="${isClean ? 'badge-clean' : 'badge-dirty'}">${room ? room.status : '-'}</span></td>
                         <td>
-                            <button class="btn-small" onclick="editBooking(${booking.id})">✏️ Düzenle</button>
-                            <button class="btn-small btn-danger" onclick="deleteBooking(${booking.id})">🗑️ Sil</button>
+                            <button onclick="checkIn(${b.id}, ${isClean})" 
+                                    class="btn-action" 
+                                    ${!isClean ? 'disabled' : ''}
+                                    title="${!isClean ? 'Oda temizlenmeden giriş yapılamaz' : 'Giriş Yap'}">
+                                ${isClean ? '🔑 Giriş' : '⏳ Bekliyor'}
+                            </button>
                         </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            } catch (error) {
-                console.error('Hata:', error);
-                document.getElementById('bookingsTable').innerHTML = '<tr><td colspan="7" class="error">Veriler yüklenemedi</td></tr>';
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function checkIn(id, isClean) {
+            if (!isClean) {
+                alert("HATA: Housekeeping bu odayı henüz 'Temiz' olarak işaretlemedi!");
+                return;
             }
+            alert(`Rezervasyon ${id} için Check-in başarıyla tamamlandı!`);
         }
 
-        // YENİ REZERVASYON OLUŞTUR
-        async function createBooking(event) {
-            event.preventDefault();
-
-            const guestName = document.getElementById('newGuestName').value;
-            const roomId = document.getElementById('newRoomId').value;
-            const checkIn = document.getElementById('newCheckIn').value;
-            const checkOut = document.getElementById('newCheckOut').value;
-
-            try {
-                const response = await fetch('/api/bookings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        room_id: parseInt(roomId),
-                        guest_name: guestName,
-                        check_in: checkIn,
-                        check_out: checkOut,
-                        reservation_status: 'Arrived'
-                    })
-                });
-
-                if (response.ok) {
-                    showMessage('bookingMessage', '✅ Rezervasyon başarıyla oluşturuldu!', 'success');
-                    document.querySelector('.booking-form').reset();
-                    loadBookings();
-                } else {
-                    showMessage('bookingMessage', '❌ Bir hata oluştu. Lütfen tekrar deneyin.', 'error');
-                }
-            } catch (error) {
-                showMessage('bookingMessage', '❌ Hata: ' + error.message, 'error');
-            }
+        function showSection(id) {
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
         }
 
-        // GÜNLÜK RAPOR
-        async function loadDailyReport() {
-            try {
-                const response = await fetch(`/api/bookings?token=${token}`);
-                const bookings = await response.json();
-
-                const today = new Date().toISOString().split('T')[0];
-                const todayCheckIn = bookings.filter(b => b.check_in === today).length;
-                const todayCheckOut = bookings.filter(b => b.check_out === today).length;
-                const occupiedRooms = bookings.filter(b => b.reservation_status === 'Arrived').length;
-
-                document.getElementById('totalRooms').textContent = '50'; // Örnek değer
-                document.getElementById('occupiedRooms').textContent = occupiedRooms;
-                document.getElementById('todayCheckIn').textContent = todayCheckIn;
-                document.getElementById('todayCheckOut').textContent = todayCheckOut;
-            } catch (error) {
-                console.error('Rapor yüklenemedi:', error);
-            }
-        }
-
-        // İŞGAL ORANI
-        async function loadOccupancy() {
-            try {
-                const response = await fetch(`/api/bookings?token=${token}`);
-                const bookings = await response.json();
-
-                const occupiedRooms = bookings.filter(b => b.reservation_status === 'Arrived').length;
-                const totalRooms = 50; // Örnek değer
-                const occupancyPercent = Math.round((occupiedRooms / totalRooms) * 100);
-
-                document.getElementById('occupancyPercentage').textContent = occupancyPercent;
-                document.getElementById('occupancyBar').style.width = occupancyPercent + '%';
-            } catch (error) {
-                console.error('İşgal oranı yüklenemedi:', error);
-            }
-        }
-
-        // YARDIMCI FONKSİYONLAR
-        function showMessage(elementId, message, type) {
-            const element = document.getElementById(elementId);
-            element.textContent = message;
-            element.className = `message-box ${type}`;
-            element.style.display = 'block';
-            setTimeout(() => {
-                element.style.display = 'none';
-            }, 5000);
-        }
-
-        function editBooking(id) {
-            alert('Rezervasyon ' + id + ' düzenleme fonksiyonu henüz geliştiriliyor.');
-        }
-
-        function deleteBooking(id) {
-            if (confirm('Bu rezervasyonu silmek istediğinizden emin misiniz?')) {
-                alert('Silme işlemi yapılıyor...');
-            }
-        }
-
-        function performCheckIn() {
-            alert('Check-in işlemi tamamlandı!');
-        }
-
-        function performCheckOut() {
-            alert('Check-out işlemi tamamlandı!');
-        }
-
-        async function logout() {
-            await fetch('/api/logout', { method: 'POST' });
-            window.location.href = '/';
-        }
-
-        // SAYFA YÜKLEMESİ
-        window.addEventListener('load', () => {
-            loadBookings();
-        });
+        window.onload = loadFrontOfficeData;
     </script>
 </body>
 </html>

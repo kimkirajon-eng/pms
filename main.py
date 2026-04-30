@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import os
 from datetime import datetime
+from typing import List
 
 from database import engine, SessionLocal
 from models import Base, User, Room, Booking
@@ -16,15 +17,34 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Hotel PMS System")
 
-# Klasörlerin varlığından emin ol (Render hatasını önlemek için)
+# WebSocket Bağlantı Yöneticisi
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except:
+                continue
+
+manager = ConnectionManager()
+
+# Klasör kontrolü
 if not os.path.exists("static"): os.makedirs("static")
 if not os.path.exists("templates"): os.makedirs("templates")
 
-# Template ve Static dosyalarını bağla
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Dependency: Veritabanı oturumu
 def get_db():
     db = SessionLocal()
     try:
@@ -43,11 +63,10 @@ class LoginResponse(BaseModel):
     token: str = None
     department: str = None
 
-# ============= STARTUP: DEMO VERİLERİ =============
+# ============= STARTUP & WEBSOCKET =============
 @app.on_event("startup")
 def startup_event():
     db = SessionLocal()
-    # Demo Kullanıcıları Oluştur (Hashed Password ile)
     demo_users = [
         {"u": "front_office", "p": "1234", "d": "front_office"},
         {"u": "housekeeping", "p": "1234", "d": "housekeeping"}
@@ -57,15 +76,22 @@ def startup_event():
             new_user = User(username=d["u"], password_hash=get_password_hash(d["p"]), department=d["d"])
             db.add(new_user)
     
-    # Örnek Odalar Oluştur
     if db.query(Room).count() == 0:
         for i in range(101, 106):
             db.add(Room(id=i, room_type="Standart", status="Dirty", occupancy="Vacant"))
-    
     db.commit()
     db.close()
 
-# ============= SAYFALAR (HTML) =============
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# ============= SAYFALAR =============
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html")
@@ -79,7 +105,6 @@ async def front_office_dashboard(request: Request, token: str = None, db: Sessio
     
     today = datetime.now().date()
     active_bookings = db.query(Booking).filter((Booking.check_in <= today) & (Booking.check_out >= today)).all()
-    
     return templates.TemplateResponse(request=request, name="front_office_dashboard.html", context={
         "username": payload.get("sub"), "bookings": active_bookings, "token": token
     })
@@ -122,6 +147,8 @@ async def update_room_status(room_id: int, new_status: str, token: str = None, d
         room.status = new_status
         room.last_cleaned_at = datetime.now()
         db.commit()
+        # DEĞİŞİKLİĞİ TÜM BAĞLI EKRANLARA DUYUR
+        await manager.broadcast("rooms_updated")
     return {"message": "Güncellendi"}
 
 @app.get("/health")

@@ -17,7 +17,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Hotel PMS System")
 
-# WebSocket Bağlantı Yöneticisi
+# ============= WEBSOCKET YÖNETİCİSİ =============
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -38,7 +38,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Klasör kontrolü
+# Klasör Kontrolleri
 if not os.path.exists("static"): os.makedirs("static")
 if not os.path.exists("templates"): os.makedirs("templates")
 
@@ -63,10 +63,11 @@ class LoginResponse(BaseModel):
     token: str = None
     department: str = None
 
-# ============= STARTUP & WEBSOCKET =============
+# ============= STARTUP & DEMO VERİLERİ =============
 @app.on_event("startup")
 def startup_event():
     db = SessionLocal()
+    # Demo Kullanıcılar
     demo_users = [
         {"u": "front_office", "p": "1234", "d": "front_office"},
         {"u": "housekeeping", "p": "1234", "d": "housekeeping"}
@@ -76,12 +77,15 @@ def startup_event():
             new_user = User(username=d["u"], password_hash=get_password_hash(d["p"]), department=d["d"])
             db.add(new_user)
     
+    # Başlangıç Odaları
     if db.query(Room).count() == 0:
         for i in range(101, 106):
             db.add(Room(id=i, room_type="Standart", status="Dirty", occupancy="Vacant"))
+    
     db.commit()
     db.close()
 
+# ============= WEBSOCKET ENDPOINT =============
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -91,7 +95,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-# ============= SAYFALAR =============
+# ============= SAYFALAR (HTML) =============
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html")
@@ -126,10 +130,10 @@ async def housekeeping_dashboard(request: Request, token: str = None, db: Sessio
 async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == credentials.username).first()
     if not user or not verify_password(credentials.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Geçersiz kullanıcı adı veya şifre")
+        raise HTTPException(status_code=401, detail="Geçersiz giriş")
     
     access_token = create_access_token(data={"sub": user.username, "department": user.department})
-    return {"success": True, "message": f"{user.department} hoşgeldiniz", "token": access_token, "department": user.department}
+    return {"success": True, "message": "Hoşgeldiniz", "token": access_token, "department": user.department}
 
 @app.get("/api/rooms")
 async def get_rooms(token: str = None, db: Session = Depends(get_db)):
@@ -137,17 +141,45 @@ async def get_rooms(token: str = None, db: Session = Depends(get_db)):
     if not payload: raise HTTPException(status_code=401)
     return db.query(Room).all()
 
+@app.post("/api/bookings")
+async def create_booking(booking_data: dict, db: Session = Depends(get_db)):
+    # Rezervasyon Kaydı
+    new_booking = Booking(
+        room_id=booking_data['room_id'],
+        guest_name=booking_data['guest_name'],
+        check_in=datetime.strptime(booking_data['check_in'], '%Y-%m-%d').date(),
+        check_out=datetime.strptime(booking_data['check_out'], '%Y-%m-%d').date(),
+        reservation_status="Arrived"
+    )
+    db.add(new_booking)
+    
+    # Odayı "Occupied" (Dolu) yap
+    room = db.query(Room).filter(Room.id == booking_data['room_id']).first()
+    if room:
+        room.occupancy = "Occupied"
+    
+    db.commit()
+    # HK EKRANINA BİLDİR: Oda artık dolu!
+    await manager.broadcast("rooms_updated")
+    return {"success": True}
+
+@app.get("/api/bookings")
+async def get_bookings(token: str = None, db: Session = Depends(get_db)):
+    payload = verify_token(token)
+    if not payload: raise HTTPException(status_code=401)
+    return db.query(Booking).all()
+
 @app.put("/api/rooms/{room_id}/status")
 async def update_room_status(room_id: int, new_status: str, token: str = None, db: Session = Depends(get_db)):
     payload = verify_token(token)
-    if not payload or payload.get("department") != "housekeeping":
-        raise HTTPException(status_code=403)
+    if not payload: raise HTTPException(status_code=403)
+    
     room = db.query(Room).filter(Room.id == room_id).first()
     if room:
         room.status = new_status
         room.last_cleaned_at = datetime.now()
         db.commit()
-        # DEĞİŞİKLİĞİ TÜM BAĞLI EKRANLARA DUYUR
+        # ÖNBÜRO EKRANINA BİLDİR: Oda temizlendi veya kirlendi!
         await manager.broadcast("rooms_updated")
     return {"message": "Güncellendi"}
 

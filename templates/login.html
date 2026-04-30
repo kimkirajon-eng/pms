@@ -1,11 +1,48 @@
-        const loginForm = document.getElementById('loginForm');
-        const errorMessage = document.getElementById('errorMessage');
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Otel PMS - Giriş</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <h1>🏨 Otel PMS Sistemi</h1>
+            <p class="subtitle">Yönetim Paneline Hoşgeldiniz</p>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Kullanıcı Adı</label>
+                    <input type="text" id="username" name="username" required placeholder="Kullanıcı adınızı giriniz">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Şifre</label>
+                    <input type="password" id="password" name="password" required placeholder="Şifrenizi giriniz">
+                </div>
+                
+                <button type="submit" class="btn-login">Giriş Yap</button>
+            </form>
+            
+            <div id="errorMessage" class="error-message" style="display: none; color: red; margin-top: 10px; text-align: center;"></div>
+            
+            <div class="demo-info">
+                <p><strong>Demo Hesapları:</strong></p>
+                <p>👤 <code>front_office</code> / <code>1234</code></p>
+                <p>🧹 <code>housekeeping</code> / <code>1234</code></p>
+            </div>
+        </div>
+    </div>
 
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Sayfanın yenilenmesini durdur
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
             
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
 
             try {
                 const response = await fetch('/api/login', {
@@ -17,16 +54,15 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    // Backend'in beklediği formatta yönlendirme yapıyoruz
+                    // Başarılı girişte departmana göre yönlendir
                     window.location.href = `/dashboard/${data.department}?token=${data.token}`;
                 } else {
-                    errorMessage.textContent = data.detail || 'Giriş başarısız!';
-                    errorMessage.style.display = 'block';
+                    errorDiv.textContent = data.detail || "Giriş başarısız!";
+                    errorDiv.style.display = 'block';
                 }
-            } catch (error) {
-                console.error('Hata:', error);
-                errorMessage.textContent = 'Sunucuya bağlanılamadı!';
-                errorMessage.style.display = 'block';
+            } catch (err) {
+                errorDiv.textContent = "Sunucuya bağlanılamadı!";
+                errorDiv.style.display = 'block';
             }
         });
     </script>

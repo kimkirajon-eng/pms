@@ -4,57 +4,57 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Önbüro Yönetimi | Otel PMS</title>
-    <!-- Google Fonts & Icons -->
+    <!-- Modern Yazı Tipi -->
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        /* Panel Özel Stilleri - Modern Mavi Tema */
         :root { --pms-blue: #0ea5e9; --pms-dark: #0f172a; --pms-gray: #f8fafc; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--pms-gray); }
-        .badge-clean { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; }
-        .badge-dirty { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; }
-        .room-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 10px; background: white; transition: 0.3s; }
-        .room-card:hover { border-color: var(--pms-blue); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        body { font-family: 'Inter', sans-serif; background-color: var(--pms-gray); margin: 0; }
+        .badge-clean { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+        .badge-dirty { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+        .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
+        .room-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; text-align: center; transition: 0.3s; }
+        .room-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .live-indicator { display: inline-block; width: 10px; height: 10px; background: #22c55e; border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
-    <div class="dashboard-wrapper">
+    <div class="dashboard-container">
         <!-- SIDEBAR -->
-        <nav class="sidebar">
-            <div class="sidebar-brand">PMS <span>Manager</span></div>
-            <ul class="nav-list">
-                <li onclick="showSection('reservations')" class="nav-item active">📋 Rezervasyonlar</li>
-                <li onclick="showSection('room-status')" class="nav-item">🛏️ Oda Durumları (HK Canlı)</li>
-                <li onclick="showSection('new-booking')" class="nav-item">➕ Hızlı Kayıt</li>
-            </ul>
-        </nav>
+        <aside class="sidebar">
+            <div class="sidebar-brand">🏨 PMS <span>Front</span></div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-link active" onclick="showSection('reservations')">📋 Rezervasyonlar</a>
+                <a href="#" class="nav-link" onclick="showSection('hk-live')">🧹 HK Canlı Takip</a>
+            </nav>
+        </aside>
 
         <!-- MAIN -->
         <main class="main-content">
-            <header class="top-bar">
-                <h2>Önbüro Operasyon Merkezi</h2>
-                <div class="user-pill">👤 {{ username }} | <a href="/">Çıkış</a></div>
+            <header class="dashboard-header">
+                <h2>Önbüro Operasyon Merkezi <span class="badge-clean" style="font-size: 0.6rem;"><span class="live-indicator"></span>CANLI</span></h2>
+                <div class="header-right">
+                    <span class="user-info">👤 {{ username }}</span>
+                    <button class="btn-logout" onclick="logout()">Güvenli Çıkış</button>
+                </div>
             </header>
 
-            <!-- HK İLE İLETİŞİM: CANLI ODA DURUMLARI -->
-            <section id="room-status" class="content-section">
+            <!-- HK CANLI TAKİP SEKSİYONU -->
+            <section id="hk-live" class="content-section">
                 <div class="section-card">
-                    <h3>Housekeeping Canlı Takip</h3>
-                    <p class="hint">Temizlenmeyen (Dirty) odalara Check-in yapılamaz.</p>
-                    <div id="hkRoomGrid" class="grid-layout">
-                        <!-- JS ile dolacak -->
+                    <h3>Housekeeping Oda Durumları</h3>
+                    <p>Oda durumları HK tarafından güncellendiğinde burada anlık değişir.</p>
+                    <div id="hkRoomGrid" class="room-grid">
+                        <!-- WebSocket veya API ile dolacak -->
                     </div>
                 </div>
             </section>
 
-            <!-- REZERVASYONLAR -->
+            <!-- REZERVASYONLAR SEKSİYONU -->
             <section id="reservations" class="content-section active">
                 <div class="section-card">
-                    <div class="flex-between">
-                        <h3>Aktif Rezervasyonlar</h3>
-                        <button class="btn-refresh" onclick="loadFrontOfficeData()">🔄 Verileri Güncelle</button>
-                    </div>
-                    <table class="modern-table">
+                    <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Rez ID</th>
@@ -65,7 +65,7 @@
                             </tr>
                         </thead>
                         <tbody id="foTableBody">
-                            <!-- JS ile dolacak -->
+                            <!-- Veriler Buraya -->
                         </tbody>
                     </table>
                 </div>
@@ -74,30 +74,34 @@
     </div>
 
     <script>
-        const token = "{{ token }}";
+        const token = new URLSearchParams(window.location.search).get('token') || "{{ token }}";
 
+        // 1. VERİLERİ YÜKLEME FONKSİYONU
         async function loadFrontOfficeData() {
-            // Hem odaları (HK durumu için) hem rezervasyonları çekiyoruz
-            const [roomsRes, bookingsRes] = await Promise.all([
-                fetch(`/api/rooms?token=${token}`),
-                fetch(`/api/bookings?token=${token}`)
-            ]);
+            try {
+                const [roomsRes, bookingsRes] = await Promise.all([
+                    fetch(`/api/rooms?token=${token}`),
+                    fetch(`/api/bookings?token=${token}`)
+                ]);
 
-            const rooms = await roomsRes.json();
-            const bookings = await bookingsRes.json();
+                const rooms = await roomsRes.json();
+                const bookings = await bookingsRes.json();
 
-            renderHKStatus(rooms);
-            renderBookings(bookings, rooms);
+                renderHKGrid(rooms);
+                renderBookings(bookings, rooms);
+            } catch (err) {
+                console.error("Veri çekme hatası:", err);
+            }
         }
 
-        function renderHKStatus(rooms) {
+        function renderHKGrid(rooms) {
             const grid = document.getElementById('hkRoomGrid');
             grid.innerHTML = rooms.map(r => `
                 <div class="room-card">
-                    <strong>Oda ${r.id}</strong>
-                    <div class="${r.status === 'Clean' ? 'badge-clean' : 'badge-dirty'}">
-                        ${r.status === 'Clean' ? '✅ TEMİZ' : '🧹 KİRLİ'}
-                    </div>
+                    <strong>Oda ${r.id}</strong><br>
+                    <span class="${r.status === 'Clean' ? 'badge-clean' : 'badge-dirty'}">
+                        ${r.status === 'Clean' ? 'TEMİZ' : 'KİRLİ'}
+                    </span>
                 </div>
             `).join('');
         }
@@ -107,19 +111,15 @@
             tbody.innerHTML = bookings.map(b => {
                 const room = rooms.find(r => r.id === b.room_id);
                 const isClean = room && room.status === 'Clean';
-
                 return `
                     <tr>
                         <td>${b.id}</td>
-                        <td>${b.room_id}</td>
+                        <td><strong>${b.room_id}</strong></td>
                         <td>${b.guest_name}</td>
                         <td><span class="${isClean ? 'badge-clean' : 'badge-dirty'}">${room ? room.status : '-'}</span></td>
                         <td>
-                            <button onclick="checkIn(${b.id}, ${isClean})" 
-                                    class="btn-action" 
-                                    ${!isClean ? 'disabled' : ''}
-                                    title="${!isClean ? 'Oda temizlenmeden giriş yapılamaz' : 'Giriş Yap'}">
-                                ${isClean ? '🔑 Giriş' : '⏳ Bekliyor'}
+                            <button class="btn-primary" ${!isClean ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="alert('Check-in Başarılı!')">
+                                ${isClean ? '🔑 Giriş Yap' : '⏳ Temizlik Bekliyor'}
                             </button>
                         </td>
                     </tr>
@@ -127,17 +127,27 @@
             }).join('');
         }
 
-        function checkIn(id, isClean) {
-            if (!isClean) {
-                alert("HATA: Housekeeping bu odayı henüz 'Temiz' olarak işaretlemedi!");
-                return;
-            }
-            alert(`Rezervasyon ${id} için Check-in başarıyla tamamlandı!`);
-        }
+        // 2. WEBSOCKET BAĞLANTISI (ANLIK GÜNCELLEME)
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
+        ws.onmessage = function(event) {
+            if (event.data === "rooms_updated") {
+                console.log("HK Güncellemesi Alındı!");
+                loadFrontOfficeData(); // Sayfayı yenilemeden veriyi tazele
+            }
+        };
+
+        // DİĞER FONKSİYONLAR
         function showSection(id) {
             document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        async function logout() {
+            window.location.href = '/';
         }
 
         window.onload = loadFrontOfficeData;
